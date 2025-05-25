@@ -49,6 +49,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
+        uv venv
         uv pip install -r requirements.txt
 
     - name: Start Xvfb
