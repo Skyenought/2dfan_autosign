@@ -34,7 +34,13 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version-file: ".python-version"
-        cache: "pipenv" # 启用 pip 缓存以加快依赖安装速度
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
     - name: Install system dependencies
       run: |
