@@ -49,7 +49,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        uv sync --locked --all-extras --dev
+        uv pip install -r requirements.txt
 
     - name: Start Xvfb
       # 在后台启动 Xvfb 并将输出重定向到 /dev/null 以保持日志清洁
