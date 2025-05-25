@@ -5,69 +5,79 @@ on:
     branches:
       - main
   schedule:
-    # - cron: '0 19 * * *'  # UTC时间19点对应北京时间3点.
-    - cron: '0 16 * * *'  # UTC时间22点对应北京时间6点.
+    # 当前设定为 UTC 16点 (北京时间午夜0点)
+    - cron: '0 16 * * *'
   workflow_dispatch: # 手动触发
+
+# 确保工作流的单个实例运行，取消正在进行的旧运行。
+# 这对于计划任务和推送到 main 分支的自动化很有用。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   run-task:
     runs-on: ubuntu-latest
+    # 为整个作业设置超时，以防出现意外挂起
+    timeout-minutes: 20
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # 更新到 v4 版本
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # 更新到 v5 版本
       with:
-        python-version: 3.9
-    
-    - name: Cache pip packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        python-version: '3.9' # 明确版本，或使用 '3.x'
+        cache: 'pip' # 使用 setup-python 内建的 pip 缓存功能
 
-    - name: Install dependencies
+    # Install system dependencies 步骤已移至 Python 依赖安装之前，逻辑更清晰
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y xvfb libx11-dev xauth fonts-noto-cjk  # 安装中文字体
+        sudo apt-get install -y xvfb libx11-dev xauth fonts-noto-cjk # 合并 apt-get install
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
         pip install -r requirements.txt
 
     - name: Start Xvfb
-      run: |
-        nohup Xvfb :99 -screen 0 1280x1024x24 &
+      # 在后台启动 Xvfb 并将输出重定向到 /dev/null 以保持日志清洁
+      run: Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
 
     - name: Set DISPLAY and XAUTHORITY environment variables
       run: |
         echo "DISPLAY=:99" >> $GITHUB_ENV
-        echo "XAUTHORITY=/home/runner/.Xauthority" >> $GITHUB_ENV
-        touch /home/runner/.Xauthority  # 创建一个空的 Xauthority 文件
+        # 使用 ${HOME} 更具可移植性，尽管在 GitHub Actions runner 中 /home/runner 是固定的
+        echo "XAUTHORITY=${HOME}/.Xauthority" >> $GITHUB_ENV
+        touch ${HOME}/.Xauthority
 
     - name: Run Python script
       env:
         USER_EMAIL: ${{ secrets.USER_EMAIL }}
         USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
         LOGIN_URL: ${{ secrets.LOGIN_URL }}
-      run: |
-        python 2dfan_DrissionPage.py
+        PYTHONUNBUFFERED: "1" # 确保 Python 输出立即显示在日志中，便于调试
+      run: python 2dfan_DrissionPage.py
 
     - name: Check for failure
-      if: always()  # 确保此步骤无论之前是否失败都运行
+      if: always() # 确保此步骤无论之前是否失败都运行
       run: |
         if [ -f "./failure_flag.txt" ]; then
-          echo "Sign-in failed, sending email notification..."
-          exit 1
+          echo "Sign-in failed, potential issue detected by failure_flag.txt."
+          # （可选）清理标记文件
+          # rm ./failure_flag.txt
+          exit 1 # 以错误代码退出，明确标记作业失败
         else
-          echo "Sign-in succeeded."
+          echo "Sign-in script completed. If no prior errors, it's considered successful."
         fi
-        
+
     - name: Upload screenshots as artifacts
+      if: always() # 无论成功或失败都上传，便于调试
       uses: actions/upload-artifact@v4
       with:
-        name: screenshots
+        name: screenshots-${{ github.run_id }} # 为产物名称添加运行ID，方便区分
         path: |
            ./screenshot.png
            ./screenshot_detected.png
@@ -75,3 +85,6 @@ jobs:
            ./pic2.png
            ./pic3.png
            ./pic_error.png
+        retention-days: 7 # （可选）设置产物的保留天数
+        # （可选）如果希望仅在失败时上传，可以使用 if: failure()
+        # if: failure()
