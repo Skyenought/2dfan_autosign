@@ -25,13 +25,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4 # 更新到 v4 版本
 
-    - name: Set up Python
-      uses: actions/setup-python@v5 # 更新到 v5 版本
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
       with:
-        python-version: '3.9' # 明确版本，或使用 '3.x'
-        cache: 'pip' # 使用 setup-python 内建的 pip 缓存功能
+        enable-cache: true # 启用缓存以加快依赖安装速度
+    - name: "Set up Python"
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: ".python-version"
 
-    # Install system dependencies 步骤已移至 Python 依赖安装之前，逻辑更清晰
     - name: Install system dependencies
       run: |
         sudo apt-get update
@@ -39,8 +41,7 @@ jobs:
 
     - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        uv sync --locked --all-extras --dev
 
     - name: Start Xvfb
       # 在后台启动 Xvfb 并将输出重定向到 /dev/null 以保持日志清洁
@@ -59,7 +60,7 @@ jobs:
         USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
         LOGIN_URL: ${{ secrets.LOGIN_URL }}
         PYTHONUNBUFFERED: "1" # 确保 Python 输出立即显示在日志中，便于调试
-      run: python 2dfan_DrissionPage.py
+      run: uv run 2dfan_DrissionPage.py
 
     - name: Check for failure
       if: always() # 确保此步骤无论之前是否失败都运行
