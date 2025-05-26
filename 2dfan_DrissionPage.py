@@ -11,6 +11,8 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 MAX_RETRIES = 3     # 最大重试次数
 MAX_LOGIN_ATTEMPTS = 3  # 最大重新登录次数
 
+global tab
+
 def locate_button(ele, tag="tag:svg", retries=MAX_RETRIES):
     """
     尝试定位按钮，最多尝试 `retries` 次。
@@ -90,20 +92,18 @@ def login_process(tab):
         raise RuntimeError("未找到登录按钮")
     
 def main():
+    # 启动浏览器
+    logging.info("启动浏览器...")
+    co = ChromiumOptions().set_paths(user_data_path=r'/tmp/chrome_user_data').auto_port()
+    co.incognito(True)  # 启用无痕模式
+    co.set_argument('--no-sandbox')
+    co.set_argument('--disable-gpu')
+    co.set_argument('--disable-dev-shm-usage')
+
+    tab = ChromiumPage(co)
     try:
-        # 启动浏览器
-        logging.info("启动浏览器...")
-        co = ChromiumOptions().set_paths(user_data_path=r'/tmp/chrome_user_data').auto_port()
-        co.incognito(True)  # 启用无痕模式
-        co.set_argument('--no-sandbox')
-        co.set_argument('--disable-gpu')
-        co.set_argument('--disable-dev-shm-usage')
-
-        tab = ChromiumPage(co)
-
         # 跳转到登录页面
         logging.info("跳转到登录页面...")
-
         # 从环境变量读取登录URL
         LOGIN_URL = os.getenv("LOGIN_URL", "")
         if not LOGIN_URL:
