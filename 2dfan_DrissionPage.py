@@ -11,8 +11,6 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 MAX_RETRIES = 3     # 最大重试次数
 MAX_LOGIN_ATTEMPTS = 3  # 最大重新登录次数
 
-global tab
-
 def locate_button(ele, tag="tag:svg", retries=MAX_RETRIES):
     """
     尝试定位按钮，最多尝试 `retries` 次。
@@ -90,7 +88,7 @@ def login_process(tab):
         logging.info("登录按钮已点击")
     else:
         raise RuntimeError("未找到登录按钮")
-    
+
 def main():
     # 启动浏览器
     logging.info("启动浏览器...")
@@ -115,7 +113,7 @@ def main():
         while login_attempts < MAX_LOGIN_ATTEMPTS:
             login_attempts += 1
             logging.info(f"执行登录流程（尝试第 {login_attempts} 次）...")
-            
+
             # 执行登录流程
             try:
                 login_process(tab)
